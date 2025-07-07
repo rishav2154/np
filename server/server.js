@@ -1,13 +1,11 @@
 const express = require('express');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
 // Middleware
 app.use(cors());
@@ -78,24 +76,6 @@ db.query(createContactTable, (err) => {
   }
 });
 
-// Authentication middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
-};
-
 // AUTHENTICATION ROUTES
 
 // Register endpoint
@@ -150,17 +130,6 @@ app.post('/api/auth/register', async (req, res) => {
             return res.status(500).json({ error: 'Failed to create user' });
           }
 
-          // Generate JWT token
-          const token = jwt.sign(
-            { 
-              id: result.insertId, 
-              email: email,
-              name: name 
-            },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-          );
-
           // Return user data (without password)
           const userData = {
             id: result.insertId,
@@ -175,7 +144,6 @@ app.post('/api/auth/register', async (req, res) => {
 
           res.status(201).json({
             message: 'User registered successfully',
-            token,
             user: userData
           });
         });
@@ -224,17 +192,6 @@ app.post('/api/auth/login', (req, res) => {
           return res.status(401).json({ error: 'Invalid email or password' });
         }
 
-        // Generate JWT token
-        const token = jwt.sign(
-          { 
-            id: user.id, 
-            email: user.email,
-            name: user.name 
-          },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-
         // Return user data (without password)
         const userData = {
           id: user.id,
@@ -249,7 +206,6 @@ app.post('/api/auth/login', (req, res) => {
 
         res.json({
           message: 'Login successful',
-          token,
           user: userData
         });
       } catch (compareError) {
@@ -264,10 +220,11 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // Get user profile endpoint
-app.get('/api/auth/profile', authenticateToken, (req, res) => {
+app.get('/api/auth/profile/:id', (req, res) => {
+  const { id } = req.params;
   const getUserQuery = 'SELECT id, name, email, phone, company, export_number, import_number, user_type, created_at FROM users WHERE id = ?';
   
-  db.query(getUserQuery, [req.user.id], (err, results) => {
+  db.query(getUserQuery, [id], (err, results) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error' });
@@ -340,8 +297,8 @@ app.post('/api/contact/submit', (req, res) => {
   }
 });
 
-// Get all contact messages (admin endpoint)
-app.get('/api/contact/messages', authenticateToken, (req, res) => {
+// Get all contact messages
+app.get('/api/contact/messages', (req, res) => {
   const getMessagesQuery = 'SELECT * FROM contact_messages ORDER BY created_at DESC';
   
   db.query(getMessagesQuery, (err, results) => {
@@ -354,8 +311,8 @@ app.get('/api/contact/messages', authenticateToken, (req, res) => {
   });
 });
 
-// Update message status (admin endpoint)
-app.put('/api/contact/messages/:id/status', authenticateToken, (req, res) => {
+// Update message status
+app.put('/api/contact/messages/:id/status', (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
 

@@ -32,10 +32,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = (userData: User) => {
     setUser(userData);
     localStorage.setItem('neosankalp_user', JSON.stringify(userData));
-    const token = localStorage.getItem('neosankalp_token');
-    if (token) {
-      localStorage.setItem('neosankalp_token', token);
-    }
   };
 
   const loginWithCredentials = async (email: string, password: string): Promise<boolean> => {
@@ -52,8 +48,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       if (response.ok) {
-        // Store token and user data
-        localStorage.setItem('neosankalp_token', data.token);
+        // Store user data
         localStorage.setItem('neosankalp_user', JSON.stringify(data.user));
         setUser(data.user);
         return true;
@@ -83,8 +78,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       if (response.ok) {
-        // Store token and user data
-        localStorage.setItem('neosankalp_token', data.token);
+        // Store user data
         localStorage.setItem('neosankalp_user', JSON.stringify(data.user));
         setUser(data.user);
         return true;
@@ -103,7 +97,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     localStorage.removeItem('neosankalp_user');
-    localStorage.removeItem('neosankalp_token');
   };
 
   const register = (userData: Omit<User, 'id'>) => {
@@ -117,7 +110,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   React.useEffect(() => {
     const savedUser = localStorage.getItem('neosankalp_user');
-    const savedToken = localStorage.getItem('neosankalp_token');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
