@@ -16,7 +16,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (userData: User) => void;
   logout: () => void;
-  register: (userData: Omit<User, 'id'>) => void;
   loginWithCredentials: (email: string, password: string) => Promise<boolean>;
   registerUser: (userData: any) => Promise<boolean>;
 }
@@ -25,17 +24,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
+  // Simple login function
   const login = (userData: User) => {
     setUser(userData);
     localStorage.setItem('neosankalp_user', JSON.stringify(userData));
   };
 
+  // Login with email and password
   const loginWithCredentials = async (email: string, password: string): Promise<boolean> => {
-    setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -48,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       if (response.ok) {
-        // Store user data
+        // Store user data and set state
         localStorage.setItem('neosankalp_user', JSON.stringify(data.user));
         setUser(data.user);
         return true;
@@ -59,13 +58,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Login error:', error);
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Register new user
   const registerUser = async (userData: any): Promise<boolean> => {
-    setLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
@@ -78,7 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const data = await response.json();
 
       if (response.ok) {
-        // Store user data
+        // Store user data and set state
         localStorage.setItem('neosankalp_user', JSON.stringify(data.user));
         setUser(data.user);
         return true;
@@ -89,29 +86,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Registration error:', error);
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Logout function
   const logout = () => {
     setUser(null);
     localStorage.removeItem('neosankalp_user');
   };
 
-  const register = (userData: Omit<User, 'id'>) => {
-    const newUser: User = {
-      ...userData,
-      id: Date.now().toString()
-    };
-    setUser(newUser);
-    localStorage.setItem('neosankalp_user', JSON.stringify(newUser));
-  };
-
+  // Load user from localStorage on app start
   React.useEffect(() => {
     const savedUser = localStorage.getItem('neosankalp_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Error parsing saved user data:', error);
+        localStorage.removeItem('neosankalp_user');
+      }
     }
   }, []);
 
@@ -121,7 +114,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAuthenticated: !!user,
       login,
       logout,
-      register,
       loginWithCredentials,
       registerUser
     }}>

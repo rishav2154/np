@@ -40,8 +40,7 @@ const createUsersTable = `
     export_number VARCHAR(100),
     import_number VARCHAR(100),
     user_type ENUM('importer', 'exporter', 'both') DEFAULT 'both',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `;
 
@@ -76,263 +75,164 @@ db.query(createContactTable, (err) => {
   }
 });
 
-// AUTHENTICATION ROUTES
+// SIGN UP - Register new user
+app.post('/api/auth/register', (req, res) => {
+  const { name, email, password, phone, company, exportNumber, importNumber, userType } = req.body;
 
-// Register endpoint
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { name, email, password, phone, company, exportNumber, importNumber, userType } = req.body;
-
-    // Validate required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({ 
-        error: 'Name, email, and password are required' 
-      });
-    }
-
-    // Check if user already exists
-    const checkUserQuery = 'SELECT id FROM users WHERE email = ?';
-    db.query(checkUserQuery, [email], async (err, results) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
-      }
-
-      if (results.length > 0) {
-        return res.status(400).json({ error: 'User already exists with this email' });
-      }
-
-      try {
-        // Hash password
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        // Insert new user
-        const insertUserQuery = `
-          INSERT INTO users (name, email, password, phone, company, export_number, import_number, user_type)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        const values = [
-          name,
-          email,
-          hashedPassword,
-          phone || null,
-          company || null,
-          exportNumber || null,
-          importNumber || null,
-          userType || 'both'
-        ];
-
-        db.query(insertUserQuery, values, (err, result) => {
-          if (err) {
-            console.error('Error inserting user:', err);
-            return res.status(500).json({ error: 'Failed to create user' });
-          }
-
-          // Return user data (without password)
-          const userData = {
-            id: result.insertId,
-            name,
-            email,
-            phone: phone || '',
-            company: company || '',
-            exportNumber: exportNumber || '',
-            importNumber: importNumber || '',
-            userType: userType || 'both'
-          };
-
-          res.status(201).json({
-            message: 'User registered successfully',
-            user: userData
-          });
-        });
-      } catch (hashError) {
-        console.error('Password hashing error:', hashError);
-        res.status(500).json({ error: 'Failed to process password' });
-      }
-    });
-  } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  // Check if required fields are provided
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'Name, email, and password are required' });
   }
-});
 
-// Login endpoint
-app.post('/api/auth/login', (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({ 
-        error: 'Email and password are required' 
-      });
+  // Check if user already exists
+  db.query('SELECT email FROM users WHERE email = ?', [email], (err, results) => {
+    if (err) {
+      console.error('Database error:', err);
+      return res.status(500).json({ error: 'Database error' });
     }
 
-    // Find user by email
-    const findUserQuery = 'SELECT * FROM users WHERE email = ?';
-    db.query(findUserQuery, [email], async (err, results) => {
+    if (results.length > 0) {
+      return res.status(400).json({ error: 'User already exists with this email' });
+    }
+
+    // Hash password
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
       if (err) {
-        console.error('Database error:', err);
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Password hashing error:', err);
+        return res.status(500).json({ error: 'Failed to process password' });
       }
 
-      if (results.length === 0) {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
+      // Insert new user
+      const insertQuery = `
+        INSERT INTO users (name, email, password, phone, company, export_number, import_number, user_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
 
-      const user = results[0];
+      const values = [
+        name,
+        email,
+        hashedPassword,
+        phone || null,
+        company || null,
+        exportNumber || null,
+        importNumber || null,
+        userType || 'both'
+      ];
 
-      try {
-        // Compare password
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-          return res.status(401).json({ error: 'Invalid email or password' });
+      db.query(insertQuery, values, (err, result) => {
+        if (err) {
+          console.error('Error inserting user:', err);
+          return res.status(500).json({ error: 'Failed to create user' });
         }
 
-        // Return user data (without password)
+        // Return success with user data (without password)
         const userData = {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone || '',
-          company: user.company || '',
-          exportNumber: user.export_number || '',
-          importNumber: user.import_number || '',
-          userType: user.user_type
+          id: result.insertId,
+          name,
+          email,
+          phone: phone || '',
+          company: company || '',
+          exportNumber: exportNumber || '',
+          importNumber: importNumber || '',
+          userType: userType || 'both'
         };
 
-        res.json({
-          message: 'Login successful',
+        res.status(201).json({
+          message: 'User registered successfully',
           user: userData
         });
-      } catch (compareError) {
-        console.error('Password comparison error:', compareError);
-        res.status(500).json({ error: 'Authentication failed' });
-      }
+      });
     });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  });
 });
 
-// Get user profile endpoint
-app.get('/api/auth/profile/:id', (req, res) => {
-  const { id } = req.params;
-  const getUserQuery = 'SELECT id, name, email, phone, company, export_number, import_number, user_type, created_at FROM users WHERE id = ?';
-  
-  db.query(getUserQuery, [id], (err, results) => {
+// SIGN IN - Login user
+app.post('/api/auth/login', (req, res) => {
+  const { email, password } = req.body;
+
+  // Check if required fields are provided
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  // Find user by email
+  db.query('SELECT * FROM users WHERE email = ?', [email], (err, results) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Database error' });
     }
 
     if (results.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const user = results[0];
-    const userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone || '',
-      company: user.company || '',
-      exportNumber: user.export_number || '',
-      importNumber: user.import_number || '',
-      userType: user.user_type,
-      joinDate: user.created_at
-    };
 
-    res.json({ user: userData });
-  });
-});
-
-// CONTACT FORM ROUTES
-
-// Submit contact form
-app.post('/api/contact/submit', (req, res) => {
-  try {
-    const { name, email, phone, company, service, message } = req.body;
-
-    // Validate required fields
-    if (!name || !email || !message) {
-      return res.status(400).json({ 
-        error: 'Name, email, and message are required' 
-      });
-    }
-
-    // Insert contact message
-    const insertContactQuery = `
-      INSERT INTO contact_messages (name, email, phone, company, service, message)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-
-    const values = [
-      name,
-      email,
-      phone || null,
-      company || null,
-      service || null,
-      message
-    ];
-
-    db.query(insertContactQuery, values, (err, result) => {
+    // Compare password
+    bcrypt.compare(password, user.password, (err, isMatch) => {
       if (err) {
-        console.error('Error inserting contact message:', err);
-        return res.status(500).json({ error: 'Failed to submit message' });
+        console.error('Password comparison error:', err);
+        return res.status(500).json({ error: 'Authentication failed' });
       }
 
-      res.status(201).json({
-        message: 'Message submitted successfully',
-        id: result.insertId
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      // Return success with user data (without password)
+      const userData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        company: user.company || '',
+        exportNumber: user.export_number || '',
+        importNumber: user.import_number || '',
+        userType: user.user_type
+      };
+
+      res.json({
+        message: 'Login successful',
+        user: userData
       });
     });
-  } catch (error) {
-    console.error('Contact form error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all contact messages
-app.get('/api/contact/messages', (req, res) => {
-  const getMessagesQuery = 'SELECT * FROM contact_messages ORDER BY created_at DESC';
-  
-  db.query(getMessagesQuery, (err, results) => {
-    if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
-    }
-
-    res.json({ messages: results });
   });
 });
 
-// Update message status
-app.put('/api/contact/messages/:id/status', (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+// CONTACT FORM - Submit message
+app.post('/api/contact/submit', (req, res) => {
+  const { name, email, phone, company, service, message } = req.body;
 
-  if (!['new', 'read', 'replied'].includes(status)) {
-    return res.status(400).json({ error: 'Invalid status' });
+  // Check if required fields are provided
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'Name, email, and message are required' });
   }
 
-  const updateStatusQuery = 'UPDATE contact_messages SET status = ? WHERE id = ?';
-  
-  db.query(updateStatusQuery, [status, id], (err, result) => {
+  // Insert contact message
+  const insertQuery = `
+    INSERT INTO contact_messages (name, email, phone, company, service, message)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    name,
+    email,
+    phone || null,
+    company || null,
+    service || null,
+    message
+  ];
+
+  db.query(insertQuery, values, (err, result) => {
     if (err) {
-      console.error('Database error:', err);
-      return res.status(500).json({ error: 'Database error' });
+      console.error('Error inserting contact message:', err);
+      return res.status(500).json({ error: 'Failed to submit message' });
     }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: 'Message not found' });
-    }
-
-    res.json({ message: 'Status updated successfully' });
+    res.status(201).json({
+      message: 'Message submitted successfully',
+      id: result.insertId
+    });
   });
 });
 
@@ -343,17 +243,6 @@ app.get('/api/health', (req, res) => {
     message: 'Neosankalp API is running',
     timestamp: new Date().toISOString()
   });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
 });
 
 // Start server
