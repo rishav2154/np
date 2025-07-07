@@ -2,10 +2,10 @@ const mysql = require('mysql2');
 require('dotenv').config();
 
 const db = mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'Rishav@1122',
-  database: process.env.DB_NAME || 'npt'
+  host: 'localhost',
+  user: 'root',
+  password: 'Rishav@1122',
+  database: 'npt'
 });
 
 // Connect to MySQL
@@ -34,11 +34,34 @@ const createUsersTable = `
   )
 `;
 
+// Create contact_messages table if it doesn't exist
+const createContactTable = `
+  CREATE TABLE IF NOT EXISTS contact_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    company VARCHAR(255),
+    service VARCHAR(100),
+    message TEXT NOT NULL,
+    status ENUM('new', 'read', 'replied') DEFAULT 'new',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`;
+
 db.query(createUsersTable, (err) => {
   if (err) {
     console.error('Error creating users table:', err);
   } else {
     console.log('Users table ready');
+  }
+});
+
+db.query(createContactTable, (err) => {
+  if (err) {
+    console.error('Error creating contact_messages table:', err);
+  } else {
+    console.log('Contact messages table ready');
   }
 });
 
