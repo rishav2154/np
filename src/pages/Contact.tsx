@@ -28,24 +28,57 @@ const Contact: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    showPopup(
-      <div className="text-center">
-        <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="h-8 w-8 text-white" />
-        </div>
-        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Sent Successfully!</h3>
-        <p className="text-slate-600 dark:text-slate-300 mb-4">
-          Thank you for your interest. We'll get back to you within 24 hours.
-        </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Reference ID: NS-{Date.now().toString().slice(-6)}
-        </p>
-      </div>,
-      'success'
-    );
-    setFormData({ name: '', email: '', phone: '', company: '', service: '', message: '' });
+    handleContactSubmit();
   };
 
+  const handleContactSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/contact/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showPopup(
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="h-8 w-8 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Sent Successfully!</h3>
+            <p className="text-slate-600 dark:text-slate-300 mb-4">
+              Thank you for your interest. We'll get back to you within 24 hours.
+            </p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Reference ID: NS-{data.id.toString().padStart(6, '0')}
+            </p>
+          </div>,
+          'success'
+        );
+        setFormData({ name: '', email: '', phone: '', company: '', service: '', message: '' });
+      } else {
+        throw new Error(data.error || 'Failed to send message');
+      }
+    } catch (error) {
+      console.error('Contact form error:', error);
+      showPopup(
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="h-8 w-8 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Message Failed</h3>
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
+            Unable to send your message. Please try again later.
+          </p>
+        </div>,
+        'error'
+      );
+    }
+  };
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,

@@ -36,20 +36,18 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     e.preventDefault();
     
     if (isLogin) {
-      // Simulate login
-      const userData = {
-        id: Date.now().toString(),
-        name: formData.name || 'John Doe',
-        email: formData.email,
-        phone: formData.phone || '+1 (555) 123-4567',
-        company: formData.company || 'Global Trade Corp',
-        exportNumber: 'EXP-2024-001',
-        importNumber: 'IMP-2024-001',
-        userType: 'both' as const
-      };
-      
-      login(userData);
-      
+      // Handle login with API
+      handleLogin();
+    } else {
+      // Handle registration with API
+      handleRegister();
+    }
+  };
+
+  const handleLogin = async () => {
+    const success = await loginWithCredentials(formData.email, formData.password);
+    
+    if (success) {
       showPopup(
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -59,18 +57,31 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           <p className="text-slate-600 dark:text-slate-300 mb-4">
             Successfully logged in to your Neosankalp account.
           </p>
-          <div className="text-sm text-slate-500 dark:text-slate-400 space-y-1">
-            <p>Export License: EXP-2024-001</p>
-            <p>Import License: IMP-2024-001</p>
-          </div>
         </div>,
         'success'
       );
+      onClose();
+      resetForm();
     } else {
-      // Register new user
-      const { password, ...userData } = formData;
-      register(userData);
-      
+      showPopup(
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="h-8 w-8 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Login Failed</h3>
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
+            Invalid email or password. Please try again.
+          </p>
+        </div>,
+        'error'
+      );
+    }
+  };
+
+  const handleRegister = async () => {
+    const success = await registerUser(formData);
+    
+    if (success) {
       showPopup(
         <div className="text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -80,25 +91,25 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           <p className="text-slate-600 dark:text-slate-300 mb-4">
             Your account has been created successfully. Welcome to Neosankalp!
           </p>
-          <div className="text-sm text-slate-500 dark:text-slate-400">
-            <p>Account ID: NS-{Date.now().toString().slice(-6)}</p>
-          </div>
         </div>,
         'success'
       );
+      onClose();
+      resetForm();
+    } else {
+      showPopup(
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="h-8 w-8 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Registration Failed</h3>
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
+            Unable to create account. Email might already be in use.
+          </p>
+        </div>,
+        'error'
+      );
     }
-    
-    onClose();
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      phone: '',
-      company: '',
-      exportNumber: '',
-      importNumber: '',
-      userType: 'both'
-    });
   };
 
   const resetForm = () => {
